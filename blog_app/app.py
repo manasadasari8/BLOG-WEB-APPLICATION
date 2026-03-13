@@ -24,7 +24,7 @@ def create_app(config_override: dict | None = None) -> Flask:
             # Fallback to a local development connection string.
             os.environ.get(
                 "DATABASE_URL",
-                "postgresql+psycopg2://user:password@localhost:5432/blogdb",
+                "postgresql+psycopg2://postgres:25032003@localhost:5432/blog_db",
             )
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
@@ -41,7 +41,6 @@ def create_app(config_override: dict | None = None) -> Flask:
     @app.route("/")
     def home():
         return "Blog Web Application API is running!"
-
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
