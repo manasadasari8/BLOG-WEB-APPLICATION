@@ -36,6 +36,12 @@ def create_app(config_override: dict | None = None) -> Flask:
 
     # Initialize extensions
     db.init_app(app)
+    migrate = Migrate(app, db)   
+    
+    @app.route("/")
+    def home():
+        return "Blog Web Application API is running!"
+
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
