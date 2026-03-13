@@ -11,6 +11,7 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     bio = db.Column(db.Text, nullable=True)
+    profile_image = db.Column(db.String(1024), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     posts = db.relationship("Post", backref="author", lazy=True, cascade="all, delete-orphan")

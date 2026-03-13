@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Feed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-brand">Blog Social</div>
+        <nav class="nav-links">
+            <a href="#" id="nav-home">Home</a>
+            <a href="/create" id="nav-create">Create</a>
+            <a href="/profile" id="nav-profile">Profile</a>
+            <button id="nav-logout" class="btn-link" style="display:none;">Logout</button>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section id="auth-section" class="auth-section">
+            <div class="auth-card">
+                <h2>Sign in</h2>
+                <form id="login-form" class="auth-form">
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+
+            <div class="auth-card">
+                <h2>Create account</h2>
+                <form id="signup-form" class="auth-form">
+                    <input type="text" id="signup-username" placeholder="Username" required>
+                    <input type="email" id="signup-email" placeholder="Email" required>
+                    <input type="password" id="signup-password" placeholder="Password" required>
+                    <button type="submit">Signup</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="feed-section" class="feed-section" style="display:none;">
+            <div class="feed-header">
+                <h2>Home Feed</h2>
+                <div class="feed-actions">
+                    <button id="sort-newest" class="small">Newest</button>
+                    <button id="sort-popular" class="small">Most Popular</button>
+                </div>
+            </div>
+
+            <div id="posts" class="posts"></div>
+        </section>
+    </main>
+
+    <template id="post-template">
+        <article class="post-card">
+            <header class="post-header">
+                <img class="avatar" src="" alt="Profile" />
+                <div class="post-meta">
+                    <button class="link username"></button>
+                    <span class="timestamp"></span>
+                </div>
+            </header>
+            <div class="post-body">
+                <p class="post-text"></p>
+                <img class="post-image" src="" alt="" />
+            </div>
+            <footer class="post-footer">
+                <div class="post-stats">
+                    <span class="likes"></span>
+                    <span class="comments"></span>
+                </div>
+                <div class="post-actions">
+                    <button class="btn-like">Like</button>
+                    <button class="btn-comment">Comment</button>
+                </div>
+                <div class="comment-section">
+                    <div class="comment-list"></div>
+                    <div class="comment-input">
+                        <input type="text" class="comment-text" placeholder="Write a comment...">
+                        <button class="btn-submit-comment">Post</button>
+                    </div>
+                </div>
+            </footer>
+        </article>
+    </template>
+
+    <script>
+        const API_BASE = '';
+        let currentUser = null;
+        let currentSort = 'newest';
+
+        async function fetchJson(url, options) {
+            const res = await fetch(url, options);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        }
+
+        async function checkSession() {
+            try {
+                currentUser = await fetchJson(`${API_BASE}/auth/me`);
+                document.getElementById('nav-logout').style.display = 'inline-block';
+                showFeed();
+            } catch {
+                showAuth();
+            }
+        }
+
+        function showAuth() {
+            document.getElementById('auth-section').style.display = 'flex';
+            document.getElementById('feed-section').style.display = 'none';
+            document.getElementById('nav-logout').style.display = 'none';
+        }
+
+        function showFeed() {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('feed-section').style.display = 'block';
+            document.getElementById('nav-logout').style.display = 'inline-block';
+            loadPosts();
+        }
+
+        async function login(email, password) {
+            try {
+                await fetchJson(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                return checkSession();
+            } catch {
+                alert('Login failed');
+            }
+        }
+
+        async function signup(username, email, password) {
+            try {
+                await fetchJson(`${API_BASE}/auth/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password }),
+                });
+                return checkSession();
+            } catch {
+                alert('Signup failed');
+            }
+        }
+
+        async function logout() {
+            await fetch(`${API_BASE}/auth/logout`);
+            currentUser = null;
+            showAuth();
+        }
+
+        function buildPostCard(post) {
+            const template = document.getElementById('post-template');
+            const node = template.content.cloneNode(true);
+
+            const avatar = node.querySelector('.avatar');
+            const usernameBtn = node.querySelector('.username');
+            const timestamp = node.querySelector('.timestamp');
+            const text = node.querySelector('.post-text');
+            const image = node.querySelector('.post-image');
+            const likes = node.querySelector('.likes');
+            const comments = node.querySelector('.comments');
+            const likeBtn = node.querySelector('.btn-like');
+            const commentBtn = node.querySelector('.btn-comment');
+            const commentList = node.querySelector('.comment-list');
+            const commentInput = node.querySelector('.comment-text');
+            const commentSubmit = node.querySelector('.btn-submit-comment');
+
+            avatar.src = post.author.profile_pic;
+            avatar.alt = `${post.author.username} profile`;
+            usernameBtn.textContent = post.author.username;
+            timestamp.textContent = new Date(post.created_at).toLocaleString();
+            text.textContent = post.content;
+
+            if (post.image_url) {
+                image.src = post.image_url;
+                image.style.display = 'block';
+            } else {
+                image.style.display = 'none';
+            }
+
+            likes.textContent = `${post.likes_count} likes`;
+            comments.textContent = `${post.comments_count} comments`;
+
+            if (post.liked_by_me) {
+                likeBtn.textContent = 'Unlike';
+            } else {
+                likeBtn.textContent = 'Like';
+            }
+
+            usernameBtn.addEventListener('click', () => {
+                window.location.href = `/profile/${post.author.username}`;
+            });
+
+            likeBtn.addEventListener('click', async () => {
+                await fetch(`${API_BASE}/likes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ post_id: post.id }),
+                });
+                loadPosts();
+            });
+
+            commentBtn.addEventListener('click', () => {
+                commentInput.focus();
+            });
+
+            commentSubmit.addEventListener('click', async () => {
+                const textValue = commentInput.value.trim();
+                if (!textValue) return;
+                await fetch(`${API_BASE}/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ post_id: post.id, comment_text: textValue }),
+                });
+                commentInput.value = '';
+                loadPosts();
+            });
+
+            // Render comments
+            commentList.innerHTML = '';
+            post.comments?.forEach(c => {
+                const commentEl = document.createElement('div');
+                commentEl.className = 'comment';
+                commentEl.innerHTML = `
+                    <img class="avatar-small" src="${c.author.profile_pic}" alt="${c.author.username}">
+                    <div class="comment-body">
+                        <strong>${c.author.username}</strong> ${c.text}
+                        <div class="comment-time">${new Date(c.created_at).toLocaleString()}</div>
+                    </div>
+                `;
+                commentList.appendChild(commentEl);
+            });
+
+            return node;
+        }
+
+        async function loadPosts() {
+            const res = await fetch(`${API_BASE}/posts?sort=${currentSort}`);
+            const posts = await res.json();
+            const postsDiv = document.getElementById('posts');
+            postsDiv.innerHTML = '';
+            posts.forEach(post => {
+                postsDiv.appendChild(buildPostCard(post));
+            });
+        }
+
+        document.getElementById('login-form').addEventListener('submit', e => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            login(email, password);
+        });
+
+        document.getElementById('signup-form').addEventListener('submit', e => {
+            e.preventDefault();
+            const username = document.getElementById('signup-username').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            signup(username, email, password);
+        });
+
+        document.getElementById('nav-logout').addEventListener('click', logout);
+
+        document.getElementById('sort-newest').addEventListener('click', () => {
+            currentSort = 'newest';
+            loadPosts();
+        });
+
+        document.getElementById('sort-popular').addEventListener('click', () => {
+            currentSort = 'most_popular';
+            loadPosts();
+        });
+
+        document.getElementById('nav-home').addEventListener('click', e => {
+            e.preventDefault();
+            showFeed();
+        });
+
+        document.getElementById('nav-profile').addEventListener('click', e => {
+            // navigate to profile page
+        });
+
+        checkSession();
+    </script>
+</body>
+</html>

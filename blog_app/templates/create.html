@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Post</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-brand">Blog Social</div>
+        <nav class="nav-links">
+            <a href="/">Home</a>
+            <a href="/profile">Profile</a>
+            <button id="nav-logout" class="btn-link" style="display:none;">Logout</button>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="create-page">
+            <div class="create-card">
+                <h1>Create New Post</h1>
+                <form id="create-form">
+                    <textarea id="content" placeholder="What's on your mind?" required></textarea>
+                    <input type="url" id="image_url" placeholder="Image URL (optional)">
+                    <button type="submit">Post</button>
+                </form>
+                <a href="/" class="link">Back to Feed</a>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = '';
+
+        async function checkSession() {
+            const res = await fetch(`${API_BASE}/auth/me`);
+            if (!res.ok) {
+                window.location.href = '/';
+                return;
+            }
+            document.getElementById('nav-logout').style.display = 'inline-block';
+        }
+
+        async function logout() {
+            await fetch(`${API_BASE}/auth/logout`);
+            window.location.href = '/';
+        }
+
+        document.getElementById('create-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const content = document.getElementById('content').value.trim();
+            const image_url = document.getElementById('image_url').value.trim();
+
+            if (!content) return;
+
+            const res = await fetch(`${API_BASE}/posts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, image_url: image_url || null })
+            });
+
+            if (res.ok) {
+                window.location.href = '/';
+            } else {
+                alert('Failed to create post');
+            }
+        });
+
+        document.getElementById('nav-logout').addEventListener('click', logout);
+
+        checkSession();
+    </script>
+</body>
+</html>

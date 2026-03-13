@@ -1,13 +1,37 @@
 from flask import Blueprint, jsonify, request, session
+from sqlalchemy.orm import joinedload
 
 from blog_app.database import db
-from blog_app.models import Post
+from blog_app.models import Comment, Like, Post
 from blog_app.routes.auth_routes import login_required
 
 post_bp = Blueprint("posts", __name__)
 
 
-def _post_to_dict(post: Post) -> dict:
+def _profile_image_url(profile_image: str | None) -> str:
+    if profile_image:
+        return f"/static/uploads/profile_images/{profile_image}"
+    return "/static/images/default-avatar.png"
+
+
+def _comment_to_dict(comment: Comment) -> dict:
+    return {
+        "id": comment.id,
+        "text": comment.comment_text,
+        "created_at": comment.created_at.isoformat(),
+        "author": {
+            "id": comment.author.id,
+            "username": comment.author.username,
+            "profile_pic": _profile_image_url(comment.author.profile_image),
+        },
+    }
+
+
+def _post_to_dict(post: Post, current_user_id: int | None = None) -> dict:
+    liked_by_me = False
+    if current_user_id:
+        liked_by_me = any(like.user_id == current_user_id for like in post.likes)
+
     return {
         "id": post.id,
         "content": post.content,
@@ -17,16 +41,36 @@ def _post_to_dict(post: Post) -> dict:
         "author": {
             "id": post.author.id,
             "username": post.author.username,
+            "profile_pic": _profile_image_url(post.author.profile_image),
         },
         "likes_count": len(post.likes),
         "comments_count": len(post.comments),
+        "liked_by_me": liked_by_me,
+        "comments": [_comment_to_dict(c) for c in post.comments],
     }
 
 
 @post_bp.route("/", methods=["GET"])
 def list_posts():
-    posts = Post.query.order_by(Post.created_at.desc()).all()
-    return jsonify([_post_to_dict(p) for p in posts])
+    sort_by = request.args.get("sort", "newest")
+    current_user_id = session.get("user_id")
+
+    query = Post.query.options(
+        joinedload(Post.author),
+        joinedload(Post.likes),
+        joinedload(Post.comments).joinedload(Comment.author),
+    )
+
+    if sort_by == "most_popular":
+        # Order by likes count descending, then by created_at descending
+        query = query.outerjoin(Like).group_by(Post.id).order_by(
+            db.func.count(Like.id).desc(), Post.created_at.desc()
+        )
+    else:  # newest
+        query = query.order_by(Post.created_at.desc())
+
+    posts = query.all()
+    return jsonify([_post_to_dict(p, current_user_id) for p in posts])
 
 
 @post_bp.route("/", methods=["POST"])
