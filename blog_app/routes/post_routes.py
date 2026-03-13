@@ -126,3 +126,75 @@ def delete_post(post_id: int):
     db.session.commit()
 
     return jsonify({"message": "Post deleted"}), 200
+
+
+@post_bp.route("/<int:post_id>/like", methods=["POST"])
+@login_required
+def like_post(post_id: int):
+    user_id = session.get("user_id")
+
+    post = Post.query.get_or_404(post_id)
+
+    # Prevent duplicate likes
+    existing = post.likes and any(l.user_id == user_id for l in post.likes)
+    if existing:
+        return (
+            jsonify({
+                "message": "Already liked",
+                "likes_count": len(post.likes),
+                "comments_count": len(post.comments),
+            }),
+            200,
+        )
+
+    from blog_app.models import Like
+
+    like = Like(post_id=post_id, user_id=user_id)
+    db.session.add(like)
+    db.session.commit()
+
+    # Refresh to include the new like
+    db.session.refresh(post)
+
+    return (
+        jsonify(
+            {
+                "message": "Post liked",
+                "likes_count": len(post.likes),
+                "comments_count": len(post.comments),
+            }
+        ),
+        201,
+    )
+
+
+@post_bp.route("/<int:post_id>/comment", methods=["POST"])
+@login_required
+def comment_on_post(post_id: int):
+    user_id = session.get("user_id")
+    data = request.get_json(force=True)
+    comment_text = (data.get("comment_text") or data.get("body") or "").strip()
+
+    if not comment_text:
+        return jsonify({"message": "comment_text is required"}), 400
+
+    from blog_app.models import Comment
+
+    comment = Comment(user_id=user_id, post_id=post_id, comment_text=comment_text)
+    db.session.add(comment)
+    db.session.commit()
+
+    # Refresh to include the new comment
+    db.session.refresh(post)
+
+    return (
+        jsonify(
+            {
+                "message": "Comment created",
+                "comment_id": comment.id,
+                "likes_count": len(post.likes),
+                "comments_count": len(post.comments),
+            }
+        ),
+        201,
+    )
