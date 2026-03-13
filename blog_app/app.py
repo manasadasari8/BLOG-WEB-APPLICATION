@@ -1,10 +1,10 @@
 import os
 
-from flask import Flask # type: ignore
-from database import db
-from flask_migrate import Migrate # type: ignore
+from flask import Flask
 
 from blog_app.database import db
+from flask_migrate import Migrate  # type: ignore
+
 from blog_app.routes.auth_routes import auth_bp
 from blog_app.routes.post_routes import post_bp
 from blog_app.routes.comment_routes import comment_bp
