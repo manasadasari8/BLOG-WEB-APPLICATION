@@ -23,3 +23,18 @@ def create_comment():
     db.session.commit()
 
     return jsonify({"id": comment.id}), 201
+
+
+@comment_bp.route("/<int:comment_id>", methods=["DELETE"])
+@login_required
+def delete_comment(comment_id: int):
+    user_id = session.get("user_id")
+    comment = Comment.query.get_or_404(comment_id)
+
+    if comment.user_id != user_id:
+        return jsonify({"message": "Forbidden"}), 403
+
+    db.session.delete(comment)
+    db.session.commit()
+
+    return jsonify({"message": "Comment deleted"}), 200

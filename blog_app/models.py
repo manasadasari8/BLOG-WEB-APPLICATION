@@ -65,6 +65,7 @@ class Comment(db.Model):
 
 class Like(db.Model):
     __tablename__ = "likes"
+    __table_args__ = (db.UniqueConstraint("user_id", "post_id", name="uq_like_user_post"),)
 
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
